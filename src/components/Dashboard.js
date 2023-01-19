@@ -11,6 +11,7 @@ import {
   getMostPopularDay,
   getInterviewsPerDay
  } from "helpers/selectors";
+ import { setInterview } from "helpers/reducers"
  
 // mock data
 const data = [
@@ -37,13 +38,13 @@ const data = [
 ];
 
 class Dashboard extends Component {
-state = {
- loading: true,
- focused: null,
- days: [],
- appointments: {},
- interviewers: {}
-};
+  state = {
+  loading: true,
+  focused: null,
+  days: [],
+  appointments: {},
+  interviewers: {}
+  };
 
   // Set focus state to equal the selected element id if null, or null if there is a focused (selected) id.
   selectPanel(id) {
@@ -52,9 +53,9 @@ state = {
     }));
    }
    
-   // Import state data from scheduler API using axios get
-   componentDidMount() {
-    const focused = JSON.parse(localStorage.getItem("focused"));
+  // Import state data from scheduler API using axios get
+  componentDidMount() {
+  const focused = JSON.parse(localStorage.getItem("focused"));
     Promise.all([
       axios.get("/api/days"),
       axios.get("/api/appointments"),
@@ -66,11 +67,33 @@ state = {
         appointments: appointments.data,
         interviewers: interviewers.data
       });
-    });    
+    });
 
-    if (focused) {
-      this.setState({ focused });
+    this.socket = new WebSocket(process.env.REACT_APP_WEBSOCKET_URL);
+    this.socket.onmessage = event => {
+      const data = JSON.parse(event.data);
+    
+      if (typeof data === "object" && data.type === "SET_INTERVIEW") {
+        this.setState(previousState =>
+          setInterview(previousState, data.id, data.interview)
+        );
+      }
+    };
+    if (typeof data === "object" && data.type === "SET_INTERVIEW") {
+      this.setState(previousState =>
+        setInterview(previousState, data.id, data.interview)
+      );
     }
+  };  
+
+    
+  if (focused) {
+    this.setState({ focused });
+  }
+  
+
+  componentWillUnmount() {
+    this.socket.close();
   }
 
   // Stores focused state to localStorage
@@ -81,7 +104,7 @@ state = {
   }
   
   render() {
-    console.log(this.state)
+    // console.log(this.state)
 
     const dashboardClasses = classnames("dashboard", {
       "dashboard--focused": this.state.focused
